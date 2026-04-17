@@ -1,0 +1,24 @@
+{
+  "aiEnabledDevices": [
+    "switch.center_light",
+
+    "switch.exp_room_r4",
+    "switch.exp_room_r4_2",
+    "switch.exproom_lumi_2ch_r4_2",
+    "switch.exproom_lumi_2ch_r4",
+
+    "light.lx_zigbee_16k",
+    "light.exp_room_light3_light",
+    "light.exp_room_celling_light_1_light",
+    "light.exp_celling_light_2_light",
+    "light.exp_room_celling_light_3_light",
+
+    "cover.exp_room_curtain_outbound_bottom",
+
+    "binary_sensor.experiance_room_door_sensor_window_door_is_open_2",
+
+    "switch.exp_room_ac_18",
+    "switch.exp_room_ac_20",
+    "switch.exp_room_ac_off"
+  ]
+}

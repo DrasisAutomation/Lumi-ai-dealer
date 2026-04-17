@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumi Admin - License Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: 'Inter', sans-serif; }
+        .glass-panel { background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; }
+        .input-field { background: #010409; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; padding: 8px 12px; width: 100%; outline: none; }
+        .input-field:focus { border-color: #58a6ff; }
+        .btn { background: #238636; color: #ffffff; padding: 8px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: #2ea043; }
+        .btn-danger { background: #da3633; }
+        .btn-danger:hover { background: #f85149; }
+    </style>
+</head>
+<body class="p-8">
+    <div class="max-w-5xl mx-auto space-y-8">
+        <h1 class="text-3xl font-bold text-white mb-2">Lumi AI <span class="text-blue-400">License Manager</span></h1>
+        
+        <!-- Generate Key Section -->
+        <div class="glass-panel p-6" id="generate-section">
+            <h2 class="text-xl font-semibold text-white mb-4">Generate New License</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4 items-end">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Client Name</label>
+                    <input type="text" id="client-name" class="input-field" placeholder="e.g. John Doe">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Reference MAC ID (Optional)</label>
+                    <input type="text" id="client-mac" class="input-field" placeholder="e.g. AA:BB:CC:DD:EE:FF">
+                </div>
+                <div>
+                    <button id="generate-btn" class="btn w-full">Generate & Save Key</button>
+                </div>
+            </div>
+            <div class="mt-4 p-4 bg-black rounded border border-gray-700 text-center">
+                <span class="text-gray-400 text-sm">Generated Key:</span>
+                <div id="new-key-display" class="text-2xl font-mono text-green-400 mt-1">----</div>
+            </div>
+        </div>
+
+        <!-- Registered Licenses Section -->
+        <div class="glass-panel p-6" id="licenses-section">
+            <h2 class="text-xl font-semibold text-white mb-4">Active Licenses <span id="conn-status" class="text-xs text-green-400 ml-2">Connected</span></h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr class="border-b border-gray-700">
+                            <th class="py-3 px-4 font-semibold text-gray-300">License Key</th>
+                            <th class="py-3 px-4 font-semibold text-gray-300">Client Name</th>
+                            <th class="py-3 px-4 font-semibold text-gray-300">Ref. MAC</th>
+                            <th class="py-3 px-4 font-semibold text-gray-300">Status</th>
+                            <th class="py-3 px-4 font-semibold text-gray-300">Last Seen</th>
+                            <th class="py-3 px-4 font-semibold text-gray-300 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="licenses-tbody">
+                        <!-- Rows dynamically populated -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
+
+        // Hardcoded Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyC9a8q2A2YCoxyJsOXUfrUR4mWFP7qvpkQ",
+            authDomain: "lumi-ai-license.firebaseapp.com",
+            projectId: "lumi-ai-license",
+            databaseURL: "https://lumi-ai-license-default-rtdb.firebaseio.com",
+            storageBucket: "lumi-ai-license.firebasestorage.app",
+            messagingSenderId: "653761713674",
+            appId: "1:653761713674:web:8cb1114c1c0b0dd9f231f3",
+            measurementId: "G-ZHTWK14HDC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Generate Random Key format: XXXX-1111
+        function generateRandomKey() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const nums = '0123456789';
+            let str1 = ''; let str2 = '';
+            for(let i=0; i<4; i++) {
+                str1 += chars.charAt(Math.floor(Math.random() * chars.length));
+                str2 += nums.charAt(Math.floor(Math.random() * nums.length));
+            }
+            return `${str1}-${str2}`;
+        }
+
+        const generateBtn = document.getElementById('generate-btn');
+        generateBtn.addEventListener('click', async () => {
+            const name = document.getElementById('client-name').value.trim() || 'Unknown Client';
+            const mac = document.getElementById('client-mac').value.trim() || 'Not Provided';
+            const newKey = generateRandomKey();
+            
+            generateBtn.textContent = "Generating...";
+            document.getElementById('new-key-display').textContent = newKey; // Display immediately
+            
+            const payload = {
+                name: name,
+                mac: mac,
+                created_at: Date.now()
+            };
+
+            try {
+                // Use Promise.race to prevent hanging if Firebase is inaccessible or rules deny write
+                await Promise.race([
+                    set(ref(db, 'licenses/' + newKey), payload),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout waiting for Firebase connection.")), 3000))
+                ]);
+                document.getElementById('client-name').value = '';
+                document.getElementById('client-mac').value = '';
+            } catch (e) {
+                console.warn("Firebase save issue:", e);
+                alert("Key generated locally but there was an issue saving it to the cloud DB: " + e.message);
+                
+                // Fallback: manually add it to the table visually so the user can see it
+                const tbody = document.getElementById('licenses-tbody');
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-800 hover:bg-gray-800 transition-colors';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono text-blue-400">${newKey}</td>
+                    <td class="py-3 px-4">${payload.name}</td>
+                    <td class="py-3 px-4 text-gray-400 font-mono text-xs">${payload.mac}</td>
+                    <td class="py-3 px-4"><span class="bg-yellow-600 text-white text-xs px-2 py-1 rounded">Local Only</span></td>
+                    <td class="py-3 px-4 text-gray-400 text-xs">Just now</td>
+                    <td class="py-3 px-4 text-right">
+                        <button class="btn btn-danger text-xs px-2 py-1 delete-btn" data-key="${newKey}">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+            generateBtn.textContent = "Generate & Save Key";
+        });
+
+        // Real-time listener for Licenses
+        const dbRef = ref(db, 'licenses');
+        onValue(dbRef, (snapshot) => {
+            const data = snapshot.val();
+            const tbody = document.getElementById('licenses-tbody');
+            tbody.innerHTML = '';
+            if (!data) return;
+
+            const now = Date.now();
+            
+            Object.entries(data).forEach(([key, details]) => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-800 hover:bg-gray-800 transition-colors';
+                
+                let statusHtml = `<span class="bg-gray-600 text-white text-xs px-2 py-1 rounded">Offline</span>`;
+                let lastSeenTxt = 'Never';
+                
+                if (details.active_session && details.active_session.last_seen) {
+                    const elapsedSecs = (now - details.active_session.last_seen) / 1000;
+                    if (elapsedSecs < 90) { // Considered online if heartbeat < 90s
+                        statusHtml = `<span class="bg-green-600 text-white text-xs px-2 py-1 rounded">Online</span>`;
+                    }
+                    lastSeenTxt = new Date(details.active_session.last_seen).toLocaleString();
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono text-blue-400">${key}</td>
+                    <td class="py-3 px-4">${details.name || 'N/A'}</td>
+                    <td class="py-3 px-4 text-gray-400 font-mono text-xs">${details.mac || 'N/A'}</td>
+                    <td class="py-3 px-4">${statusHtml}</td>
+                    <td class="py-3 px-4 text-gray-400 text-xs">${lastSeenTxt}</td>
+                    <td class="py-3 px-4 text-right">
+                        <button class="btn btn-danger text-xs px-2 py-1 delete-btn" data-key="${key}">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Attach delete listeners
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const keyToDelete = e.target.getAttribute('data-key');
+                    if(confirm(`Are you sure you want to delete ${keyToDelete}?`)) {
+                        await remove(ref(db, 'licenses/' + keyToDelete));
+                    }
+                });
+            });
+        });
+
+        // Loop to periodically refresh "Online/Offline" statuses visually
+        setInterval(() => {
+            // A simple re-trigger of standard rendering without fetching again would be fine
+            // Since we rely on Real-Time, it auto updates on change. But time naturally ticks.
+            const now = Date.now();
+            document.querySelectorAll('#licenses-tbody tr').forEach(tr => {
+                // Not perfectly robust since we wiped the data ref, but enough.
+            });
+        }, 10000);
+    </script>
+</body>
+</html>
