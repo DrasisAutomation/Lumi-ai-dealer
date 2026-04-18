@@ -7,20 +7,22 @@ const { exec } = require('child_process');
 const DIR = __dirname;
 const PORT = process.env.PORT || 8099;
 
-const HA_URL = "http://supervisor/core/api";
-const HA_TOKEN = process.env.SUPERVISOR_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIzNGNlNThiNDk1Nzk0NDVmYjUxNzE2NDA0N2Q0MGNmZCIsImlhdCI6MTc2NTM0NzQ5MSwiZXhwIjoyMDgwNzA3NDkxfQ.Se5PGwx0U9aqyVRnD1uwvCv3F-aOE8H53CKA5TqsV7U";
-console.log("TOKEN:", HA_TOKEN ? "EXISTS" : "MISSING");
 let addonOptions = {};
 try { addonOptions = JSON.parse(fs.readFileSync('/data/options.json', 'utf8')); } catch(e) {}
-const OAI_KEY = addonOptions.openai_api_key || process.env.OAI_KEY;
+
+const HA_URL = addonOptions.ha_wss_url;
+const HA_TOKEN = addonOptions.long_live_token;
+console.log("TOKEN:", HA_TOKEN ? "EXISTS" : "MISSING");
+
+const OAI_KEY = "REPLACE OPEN AI KEY";
 const OAI_MODEL = "gpt-4o-mini";
 
 // FTP Configuration
 const FTP_CONFIG = {
-  host: '192.168.2.25',
-  port: 21,
-  user: 'lumiai',
-  password: 'Lumiai@Secure#2026',
+  host: addonOptions.ftp_ip,
+  port: addonOptions.ftp_port,
+  user: addonOptions.ftp_user,
+  password: addonOptions.ftp_password,
   remotePath: '/config/www/community/images'
 };
 

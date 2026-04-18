@@ -1,6 +1,6 @@
 name: "Lumi Home AI"
 description: "Premium smart home assistant powered by AI"
-version: "6.8.0"
+version: "7.0.0"
 slug: "lumi_demo_ai"
 init: false
 arch:
@@ -22,8 +22,18 @@ homeassistant_api: true
 map:
   - config:rw
 options:
-  openai_api_key: ""
+  ha_wss_url: ""
+  long_live_token: ""
+  ftp_ip: ""
+  ftp_port: 21
+  ftp_user: ""
+  ftp_password: ""
   license_key: ""
 schema:
-  openai_api_key: "password?"
+  ha_wss_url: "str?"
+  long_live_token: "password?"
+  ftp_ip: "str?"
+  ftp_port: "port?"
+  ftp_user: "str?"
+  ftp_password: "password?"
   license_key: "str?"
