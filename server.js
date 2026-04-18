@@ -10,8 +10,15 @@ const PORT = process.env.PORT || 8099;
 let addonOptions = {};
 try { addonOptions = JSON.parse(fs.readFileSync('/data/options.json', 'utf8')); } catch(e) {}
 
-const HA_URL = addonOptions.ha_wss_url;
-const HA_TOKEN = addonOptions.long_live_token;
+let sanitizedHaUrl = addonOptions.ha_wss_url || "http://supervisor/core/api";
+if (sanitizedHaUrl) {
+  sanitizedHaUrl = sanitizedHaUrl.replace(/^ws:\/\//i, 'http://').replace(/^wss:\/\//i, 'https://');
+  sanitizedHaUrl = sanitizedHaUrl.replace(/\/api\/websocket\/?$/i, '/api');
+  if (!sanitizedHaUrl.endsWith('/api')) sanitizedHaUrl = sanitizedHaUrl.replace(/\/$/, '') + '/api';
+}
+
+const HA_URL = sanitizedHaUrl;
+const HA_TOKEN = addonOptions.long_live_token || process.env.SUPERVISOR_TOKEN;
 console.log("TOKEN:", HA_TOKEN ? "EXISTS" : "MISSING");
 
 const OAI_KEY = "REPLACE OPEN AI KEY";
@@ -635,6 +642,7 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+  if (req.url === '/favicon.ico') { res.writeHead(204); return res.end(); }
 
   // Admin HTML UI
   if (req.method === 'GET' && req.url === '/admin.html') {
